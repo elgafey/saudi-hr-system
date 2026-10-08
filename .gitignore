@@ -1,8 +1,0 @@
-# Root-level caches (project subtrees carry their own .gitignore)
-.pytest_cache/
-__pycache__/
-*.py[cod]
-.ruff_cache/
-
-custom_inventory_balance_report/
-custom_invoice_design.zip
