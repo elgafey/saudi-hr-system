@@ -3,3 +3,6 @@
 __pycache__/
 *.py[cod]
 .ruff_cache/
+
+custom_inventory_balance_report/
+custom_invoice_design.zip
