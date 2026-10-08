@@ -1,35 +1,5 @@
-# Environment / secrets
-.env
-.env.local
-.env.*.local
-
-# Python
-.venv/
-venv/
+# Root-level caches (project subtrees carry their own .gitignore)
+.pytest_cache/
 __pycache__/
 *.py[cod]
-*.egg-info/
-.pytest_cache/
-.coverage
-htmlcov/
-.mypy_cache/
 .ruff_cache/
-
-# Node
-node_modules/
-dist/
-.vite/
-npm-debug.log*
-
-# IDE / OS
-.idea/
-.vscode/
-*.swp
-Thumbs.db
-.DS_Store
-
-# Runtime data (never commit)
-storage/
-backups/
-logs/
-*.log

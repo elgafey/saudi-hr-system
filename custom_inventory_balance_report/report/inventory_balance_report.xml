@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- A4 Landscape Paper Format -->
+    <record id="paperformat_inventory_balance" model="report.paperformat">
+        <field name="name">Inventory Balance A4 Landscape</field>
+        <field name="default" eval="False"/>
+        <field name="format">A4</field>
+        <field name="page_height">0</field>
+        <field name="page_width">0</field>
+        <field name="orientation">Landscape</field>
+        <field name="margin_top">8</field>
+        <field name="margin_bottom">8</field>
+        <field name="margin_left">8</field>
+        <field name="margin_right">8</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="dpi">96</field>
+    </record>
+
+    <!-- Report Action -->
+    <record id="action_report_inventory_balance" model="ir.actions.report">
+        <field name="name">Inventory Balance Report</field>
+        <field name="model">inventory.balance.wizard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">custom_inventory_balance_report.inventory_balance_report_template</field>
+        <field name="report_file">custom_inventory_balance_report.inventory_balance_report_template</field>
+        <field name="paperformat_id" ref="paperformat_inventory_balance"/>
+    </record>
+</odoo>

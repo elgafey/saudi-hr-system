@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Wizard Form View -->
+    <record id="view_inventory_balance_wizard_form" model="ir.ui.view">
+        <field name="name">inventory.balance.wizard.form</field>
+        <field name="model">inventory.balance.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Inventory Balance Report">
+                <group>
+                    <group string="Period">
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                    </group>
+                    <group string="Filters">
+                        <field name="company_id" groups="base.group_multi_company"/>
+                        <field name="categ_id"/>
+                        <field name="product_id"/>
+                        <field name="include_no_movement"/>
+                    </group>
+                </group>
+                <footer>
+                    <button
+                        name="action_print_pdf"
+                        string="Print PDF"
+                        type="object"
+                        class="btn-primary"
+                        icon="fa-print"/>
+                    <button
+                        string="Cancel"
+                        class="btn-secondary"
+                        special="cancel"
+                        data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Window Action (no menuitem — accessible via Settings > Technical > Actions) -->
+    <record id="action_inventory_balance_report" model="ir.actions.act_window">
+        <field name="name">Inventory Balance Report</field>
+        <field name="res_model">inventory.balance.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_inventory_balance_wizard_form"/>
+        <field name="target">new</field>
+    </record>
+</odoo>
