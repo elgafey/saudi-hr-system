@@ -11,9 +11,10 @@ from app.core.rls_phase5 import register_phase5_rls
 from app.core.rls_phase6 import register_phase6_rls
 from app.core.rls_phase7 import register_phase7_rls
 from app.core.rls_phase8 import register_phase8_rls
+from app.core.rls_phase9 import register_phase9_rls
 from app.shared.models import Company  # noqa: F401 - registers rules
 
-# Phase 2/3/4/5/6/7/8 rules are registered by app.main at runtime and by
+# Phase 2/3/4/5/6/7/8/9 rules are registered by app.main at runtime and by
 # their migrations; register them here so this unit test is deterministic
 # standalone (registration is idempotent).
 register_phase2_rls()
@@ -23,6 +24,7 @@ register_phase5_rls()
 register_phase6_rls()
 register_phase7_rls()
 register_phase8_rls()
+register_phase9_rls()
 
 EXPECTED_RLS_TABLES = {
     "companies",
@@ -75,6 +77,9 @@ EXPECTED_RLS_TABLES = {
     # Phase 8 (salary advances)
     "salary_advances",
     "salary_advance_events",
+    # Phase 9 (HR letters)
+    "hr_letters",
+    "hr_letter_events",
 }
 
 

@@ -22,6 +22,7 @@ from app.core.rls_phase5 import register_phase5_rls
 from app.core.rls_phase6 import register_phase6_rls
 from app.core.rls_phase7 import register_phase7_rls
 from app.core.rls_phase8 import register_phase8_rls
+from app.core.rls_phase9 import register_phase9_rls
 from app.departments.router import router as departments_router
 from app.employee_contracts.router import router as contracts_router
 from app.employee_documents.router import router as documents_router
@@ -42,6 +43,7 @@ from app.leave.router import holidays_router as company_holidays_router
 from app.leave.router import leave_types_router
 from app.leave.router import requests_router as leave_requests_router
 from app.leave.router import statutory_router as leave_statutory_router
+from app.letter.router import ess_letters_router, hr_letters_router
 from app.overtime.router import router as overtime_router
 from app.payroll.router import adjustments_router as payroll_adjustments_router
 from app.payroll.router import deductions_router as payroll_deductions_router
@@ -66,6 +68,7 @@ register_phase5_rls()
 register_phase6_rls()
 register_phase7_rls()
 register_phase8_rls()
+register_phase9_rls()
 
 API_PREFIX = "/api/v1"
 
@@ -102,7 +105,9 @@ def create_app() -> FastAPI:
             "rules and statutory payroll rules. Phase 7: employee "
             "self-service (/me), generic request & approval workflow and "
             "the manager approvals inbox. Phase 8: salary advances "
-            "(apply, approve, disburse, repay through payroll)."
+            "(apply, approve, disburse, repay through payroll). "
+            "Phase 9: HR letters and employment certificates "
+            "(draft, issue, void, ESS portal)."
         ),
         lifespan=lifespan,
         docs_url=docs,
@@ -132,7 +137,7 @@ def create_app() -> FastAPI:
     def health(request: Request) -> dict:
         return {
             "status": "ok",
-            "phase": 8,
+            "phase": 9,
             "database": "up" if request.app.state.database_available else "down",
             "rls_tables": sorted(RLS_REGISTRY.keys()),
         }
@@ -176,6 +181,8 @@ def create_app() -> FastAPI:
     app.include_router(approvals_router, prefix=API_PREFIX)
     app.include_router(document_visibility_router, prefix=API_PREFIX)
     app.include_router(salary_advances_router, prefix=API_PREFIX)
+    app.include_router(hr_letters_router, prefix=API_PREFIX)
+    app.include_router(ess_letters_router, prefix=API_PREFIX)
     return app
 
 

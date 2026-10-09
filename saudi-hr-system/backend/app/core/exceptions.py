@@ -611,3 +611,48 @@ class SalaryAdvanceReasonRequiredError(DomainError):
 
 class SalaryAdvanceRuleMissingError(ConflictError):
     code = "SALARY_ADVANCE_RULE_MISSING"
+
+
+# ---------------------------------------------------------------------------
+# Phase 9 - HR letters (stable error codes, docs/PHASE9.md).
+# ---------------------------------------------------------------------------
+
+
+class HrLetterNotFoundError(NotFoundError):
+    code = "HR_LETTER_NOT_FOUND"
+
+
+class HrLetterForbiddenError(ForbiddenError):
+    code = "HR_LETTER_FORBIDDEN"
+
+
+class HrLetterStateError(ConflictError):
+    code = "HR_LETTER_STATE_INVALID"
+
+
+class HrLetterReasonRequiredError(DomainError):
+    status_code = 400
+    code = "HR_LETTER_REASON_REQUIRED"
+
+
+class HrLetterTypeError(DomainError):
+    status_code = 400
+    code = "HR_LETTER_TYPE_INVALID"
+
+
+class HrLetterRequestError(DomainError):
+    status_code = 400
+    code = "HR_LETTER_REQUEST_INVALID"
+
+
+class HrLetterRequestLinkedError(ConflictError):
+    code = "HR_LETTER_REQUEST_LINKED"
+
+
+class HrLetterEmployeeInvalidError(DomainError):
+    status_code = 400
+    code = "HR_LETTER_EMPLOYEE_INVALID"
+
+
+class HrLetterSourceMissingError(ConflictError):
+    code = "HR_LETTER_SOURCE_MISSING"

@@ -144,11 +144,12 @@ def test_rls_forced_on_all_tenant_tables(db_session):
             "'payroll_statutory_rules',"
             "'employee_requests','employee_request_events',"
             "'employee_document_visibility',"
-            "'salary_advances','salary_advance_events'"
+            "'salary_advances','salary_advance_events',"
+            "'hr_letters','hr_letter_events'"
             ")"
         )
     ).all()
-    assert len(rows) == 43
+    assert len(rows) == 45
     for name, enabled, forced in rows:
         assert enabled, f"{name} RLS not enabled"
         assert forced, f"{name} FORCE RLS not set"
@@ -204,6 +205,8 @@ def test_policies_exist_for_all_tenant_tables(db_session):
         "employee_document_visibility",
         "salary_advances",
         "salary_advance_events",
+        "hr_letters",
+        "hr_letter_events",
     }
 
 

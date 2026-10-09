@@ -2718,3 +2718,108 @@ export function settleSalaryAdvance(
 ): Promise<SalaryAdvance> {
   return post(`/salary-advances/${id}/settle`, payload);
 }
+
+// Phase 9 — HR letters
+export interface HrLetterEvent {
+  id: number;
+  action: string;
+  from_status: string | null;
+  to_status: string;
+  actor_name: string;
+  note: string | null;
+  created_at: string;
+}
+
+export interface HrLetterListItem {
+  id: number;
+  reference: string;
+  company_id: number;
+  employee_id: number;
+  letter_type: string;
+  language: string;
+  purpose: string | null;
+  status: string;
+  source_request_id: number | null;
+  issued_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrLetter extends HrLetterListItem {
+  content: Record<string, string | null>;
+  issued_by: number | null;
+  cancelled_at: string | null;
+  cancelled_by: number | null;
+  cancel_reason: string | null;
+  voided_at: string | null;
+  voided_by: number | null;
+  void_reason: string | null;
+  created_by: number | null;
+  updated_by: number | null;
+  version: number;
+  events: HrLetterEvent[];
+}
+
+export interface HrLetterInput {
+  employee_id: number;
+  letter_type: string;
+  language?: string;
+  purpose?: string | null;
+  source_request_id?: number | null;
+}
+
+export interface HrLetterUpdate {
+  purpose?: string | null;
+  language?: string;
+}
+
+export interface HrLettersPageParams extends ListParams {
+  employee_id?: number;
+  letter_type?: string;
+}
+
+export function listHrLetters(
+  params: HrLettersPageParams = {},
+): Promise<PageResponse<HrLetterListItem>> {
+  return get(`/hr-letters${qs(params)}`);
+}
+
+export function getHrLetter(id: number): Promise<HrLetter> {
+  return get(`/hr-letters/${id}`);
+}
+
+export function createHrLetter(payload: HrLetterInput): Promise<HrLetter> {
+  return post("/hr-letters", payload);
+}
+
+export function updateHrLetter(
+  id: number,
+  payload: HrLetterUpdate,
+): Promise<HrLetter> {
+  return patch(`/hr-letters/${id}`, payload);
+}
+
+export function issueHrLetter(id: number): Promise<HrLetter> {
+  return post(`/hr-letters/${id}/issue`, {});
+}
+
+export function cancelHrLetter(
+  id: number,
+  reason?: string | null,
+): Promise<HrLetter> {
+  return post(`/hr-letters/${id}/cancel`, { reason: reason || null });
+}
+
+export function voidHrLetter(id: number, reason: string): Promise<HrLetter> {
+  return post(`/hr-letters/${id}/void`, { reason });
+}
+
+export function listMyLetters(
+  params: ListParams = {},
+): Promise<PageResponse<HrLetterListItem>> {
+  return get(`/me/letters${qs(params)}`);
+}
+
+export function getMyLetter(id: number): Promise<HrLetter> {
+  return get(`/me/letters/${id}`);
+}

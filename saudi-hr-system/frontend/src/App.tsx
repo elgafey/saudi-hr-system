@@ -23,12 +23,14 @@ import EssApprovalsPage from "./pages/EssApprovalsPage";
 import EssAttendancePage from "./pages/EssAttendancePage";
 import EssDocumentsPage from "./pages/EssDocumentsPage";
 import EssLayoutPage from "./pages/EssLayoutPage";
+import EssLettersPage from "./pages/EssLettersPage";
 import EssPayslipsPage from "./pages/EssPayslipsPage";
 import EssProfilePage from "./pages/EssProfilePage";
 import EssRequestsPage from "./pages/EssRequestsPage";
 import JobGradesPage from "./pages/JobGradesPage";
 import JobPositionsPage from "./pages/JobPositionsPage";
 import LeaveAllocationsPage from "./pages/LeaveAllocationsPage";
+import LettersPage from "./pages/LettersPage";
 import LeaveBalancesPage from "./pages/LeaveBalancesPage";
 import LeaveHolidaysPage from "./pages/LeaveHolidaysPage";
 import LeaveRequestsPage from "./pages/LeaveRequestsPage";
@@ -276,6 +278,11 @@ export default function App() {
                 {t("nav.advances")}
               </NavLink>
             ) : null}
+            {can("hr_letter.view") || can("hr_letter.create") ? (
+              <NavLink to="/letters" className={navLinkClass}>
+                {t("nav.letters")}
+              </NavLink>
+            ) : null}
           </nav>
         ) : null}
         <main className="flex-1">
@@ -485,6 +492,7 @@ export default function App() {
                 <Route path="documents" element={<EssDocumentsPage />} />
                 <Route path="attendance" element={<EssAttendancePage />} />
                 <Route path="payslips" element={<EssPayslipsPage />} />
+                <Route path="letters" element={<EssLettersPage />} />
               </Route>
               <Route
                 path="/requests"
@@ -502,6 +510,12 @@ export default function App() {
                 path="/advances"
                 element={
                   me ? <AdvancesPage /> : <Navigate to="/login" replace />
+                }
+              />
+              <Route
+                path="/letters"
+                element={
+                  me ? <LettersPage /> : <Navigate to="/login" replace />
                 }
               />
               <Route

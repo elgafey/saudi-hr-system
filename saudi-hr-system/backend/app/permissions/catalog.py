@@ -289,6 +289,16 @@ PERMISSIONS: list[tuple[str, str, str]] = [
     ("salary_advance.disburse", "Disburse salary advances", "salary_advances"),
     ("salary_advance.settle", "Settle salary advances", "salary_advances"),
     ("salary_advance.manage", "Decide any salary advance", "salary_advances"),
+    # Phase 9 - HR letters and employment certificates. 6 codes, seeded by
+    # migration 0010_phase9_hr_letters. void is the audit-sensitive lifecycle
+    # code (issued -> void, restricted to admin/manager roles); ess.letter.view
+    # gates the ESS /me/letters portal (read own letters only).
+    ("hr_letter.view", "View HR letters", "hr_letters"),
+    ("hr_letter.create", "Create HR letter drafts", "hr_letters"),
+    ("hr_letter.update", "Edit or cancel draft HR letters", "hr_letters"),
+    ("hr_letter.issue", "Issue HR letters", "hr_letters"),
+    ("hr_letter.void", "Void issued HR letters", "hr_letters"),
+    ("ess.letter.view", "View own letters", "ess"),
 ]
 
 # Default roles created for every new company (company-scoped).
@@ -441,6 +451,13 @@ DEFAULT_ROLES: list[tuple[str, str, str, list[str]]] = [
             "salary_advance.disburse",
             "salary_advance.settle",
             "salary_advance.manage",
+            # Phase 9: HR letters (all lifecycle codes) + own-letter ESS read.
+            "hr_letter.view",
+            "hr_letter.create",
+            "hr_letter.update",
+            "hr_letter.issue",
+            "hr_letter.void",
+            "ess.letter.view",
         ],
     ),
     (
@@ -533,6 +550,12 @@ DEFAULT_ROLES: list[tuple[str, str, str, list[str]]] = [
             "salary_advance.cancel",
             "salary_advance.disburse",
             "salary_advance.settle",
+            # Phase 9: officer may draft and issue letters, never void.
+            "hr_letter.view",
+            "hr_letter.create",
+            "hr_letter.update",
+            "hr_letter.issue",
+            "ess.letter.view",
         ],
     ),
     (
@@ -581,6 +604,8 @@ DEFAULT_ROLES: list[tuple[str, str, str, list[str]]] = [
             "employee_request.view",
             # Phase 8: read-only review of salary advances.
             "salary_advance.view",
+            # Phase 9: auditors read letters, never mutate them.
+            "hr_letter.view",
         ],
     ),
     (
@@ -612,6 +637,8 @@ DEFAULT_ROLES: list[tuple[str, str, str, list[str]]] = [
             "salary_advance.update",
             "salary_advance.submit",
             "salary_advance.cancel",
+            # Phase 9: employees read their own letters in the ESS portal.
+            "ess.letter.view",
         ],
     ),
 ]

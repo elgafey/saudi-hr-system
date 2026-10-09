@@ -18,7 +18,7 @@ def test_health_endpoint_reports_status(offline_client):
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
-    assert body["phase"] == 8
+    assert body["phase"] == 9
     assert body["database"] in ("up", "down")
     assert "companies" in body["rls_tables"]
     assert "employees" in body["rls_tables"]

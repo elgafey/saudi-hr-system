@@ -1,3 +1,5 @@
+"""Phase 9 migration guards: frozen hashes, chain, seeds, roundtrip."""
+
 from __future__ import annotations
 
 import hashlib
@@ -10,14 +12,14 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, select, text
 
 from alembic import command
-from app.core.rls_phase8 import PHASE8_RLS_TABLES
+from app.core.rls_phase9 import PHASE9_RLS_TABLES
 from app.permissions.catalog import PERMISSIONS
 from app.shared.models import Permission, Role, RolePermission
 from tests.conftest import BACKEND_DIR, seed_company
 
 pytestmark = pytest.mark.db
 
-# SHA-256 pins: migrations 0001-0008 are frozen upstream history, 0009 is
+# SHA-256 pins: migrations 0001-0009 are frozen upstream history, 0010 is
 # this phase's artifact. Editing any frozen file fails these guards.
 FROZEN_HASHES = {
     "0001_phase1.py": "5fe83204197a9ffcba377181188a1141fcbaafbc0606490b92ce699150d53e30",
@@ -28,48 +30,31 @@ FROZEN_HASHES = {
     "0006_phase5_leave_management.py": "5681ca44c38eed5e08328d8297034dd795202d31c28d22286b160101cf31db7e",
     "0007_phase6_payroll.py": "dd3b88005771d1883fd3f12f01945e87af3a007788ca0776fd83b7ef1c4b9bd0",
     "0008_phase7_ess_requests.py": "dbbaa5fc2efd5185eaf71d6bbe2649dc05ad3dfef5632570eb8c0886a9378c73",
+    "0009_phase8_salary_advances.py": "00994a0bb8ae5aee333227cf31358e7446ffbb4e572fb94aba6e485723f8341e",
 }
 
 # This phase's own migration artifact, pinned once written.
-PHASE8_FILE = "0009_phase8_salary_advances.py"
-PHASE8_HASH = (
-    "00994a0bb8ae5aee333227cf31358e7446ffbb4e572fb94aba6e485723f8341e"
+PHASE9_FILE = "0010_phase9_hr_letters.py"
+PHASE9_HASH = (
+    "9024a7fdeb4694ee1b952af47564fad339251d403ff64d05c2b9b689f4fddf93"
 )
 
-ADVANCE_CODES = {
-    "salary_advance.view",
-    "salary_advance.create",
-    "salary_advance.update",
-    "salary_advance.submit",
-    "salary_advance.cancel",
-    "salary_advance.approve",
-    "salary_advance.reject",
-    "salary_advance.disburse",
-    "salary_advance.settle",
-    "salary_advance.manage",
+LETTER_CODES = {
+    "hr_letter.view",
+    "hr_letter.create",
+    "hr_letter.update",
+    "hr_letter.issue",
+    "hr_letter.void",
+    "ess.letter.view",
 }
 
-EXPECTED_ADVANCE_GRANTS = {
-    "company_admin": ADVANCE_CODES,
-    "hr_manager": ADVANCE_CODES,
-    # HR runs the money but never decides: no approve/reject/manage (SoD).
-    "hr_officer": {
-        "salary_advance.view",
-        "salary_advance.create",
-        "salary_advance.update",
-        "salary_advance.submit",
-        "salary_advance.cancel",
-        "salary_advance.disburse",
-        "salary_advance.settle",
-    },
-    "auditor": {"salary_advance.view"},
-    # The default self-service role: paperwork verbs only.
-    "employee": {
-        "salary_advance.create",
-        "salary_advance.update",
-        "salary_advance.submit",
-        "salary_advance.cancel",
-    },
+EXPECTED_LETTER_GRANTS = {
+    "company_admin": LETTER_CODES,
+    "hr_manager": LETTER_CODES,
+    # HR issues letters but the audit-sensitive void stays with managers.
+    "hr_officer": LETTER_CODES - {"hr_letter.void"},
+    "auditor": {"hr_letter.view"},
+    "employee": {"ess.letter.view"},
 }
 
 
@@ -86,28 +71,33 @@ def test_frozen_migration_files_are_unchanged():
         assert digest == expected, f"{name} was modified"
 
 
-def test_phase8_migration_file_is_unchanged():
-    path = Path(BACKEND_DIR / "alembic" / "versions" / PHASE8_FILE)
+def test_phase9_migration_file_is_unchanged():
+    path = Path(BACKEND_DIR / "alembic" / "versions" / PHASE9_FILE)
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    assert digest == PHASE8_HASH, f"{PHASE8_FILE} was modified"
+    assert digest == PHASE9_HASH, f"{PHASE9_FILE} was modified"
 
 
-def test_migration_0009_is_head_and_child_of_0008():
+def test_migration_0010_is_head_and_child_of_0009():
     script = ScriptDirectory.from_config(_alembic_config())
     assert script.get_current_head() == "0010_phase9_hr_letters"
     revisions = {r.revision: r for r in script.walk_revisions()}
+    assert (
+        revisions["0009_phase8_salary_advances"].down_revision
+        == "0008_phase7_ess"
+    )
+    assert (
+        revisions["0010_phase9_hr_letters"].down_revision
+        == "0009_phase8_salary_advances"
+    )
+    # The whole frozen chain still links up.
     assert revisions["0006_phase5_leave"].down_revision == (
         "0005_phase4_attendance"
     )
     assert revisions["0007_phase6_payroll"].down_revision == "0006_phase5_leave"
     assert revisions["0008_phase7_ess"].down_revision == "0007_phase6_payroll"
-    assert (
-        revisions["0009_phase8_salary_advances"].down_revision
-        == "0008_phase7_ess"
-    )
 
 
-def test_phase8_permissions_seeded_exactly(db_session):
+def test_permissions_seeded_exactly(db_session):
     from app.core.rls import clear_context, elevate_for_seed
 
     elevate_for_seed(db_session)
@@ -117,18 +107,18 @@ def test_phase8_permissions_seeded_exactly(db_session):
     catalog_codes = {code for code, _name, _module in PERMISSIONS}
     assert db_codes == catalog_codes
     assert len(db_codes) == 150  # 45 P1-P3 + 24 P4 + 25 P5 + 28 P6 + 12 P7 + 10 P8 + 6 P9
-    assert ADVANCE_CODES <= db_codes
-    assert len([c for c in db_codes if c.startswith("salary_advance.")]) == 10
+    assert LETTER_CODES <= db_codes
+    assert len([c for c in db_codes if c.startswith("hr_letter.")]) == 5
 
 
-def test_migration_0009_owns_phase8_permission_snapshot():
-    path = BACKEND_DIR / "alembic" / "versions" / PHASE8_FILE
-    spec = importlib_util.spec_from_file_location("m0009", path)
+def test_phase9_permissions_snapshot():
+    path = BACKEND_DIR / "alembic" / "versions" / PHASE9_FILE
+    spec = importlib_util.spec_from_file_location("m0010", path)
     module = importlib_util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    migration_codes = {code for code, _n, _m in module.PHASE8_PERMISSIONS}
-    assert migration_codes == ADVANCE_CODES
-    assert ADVANCE_CODES <= {code for code, _n, _m in PERMISSIONS}
+    migration_codes = {code for code, _n, _m in module.PHASE9_PERMISSIONS}
+    assert migration_codes == LETTER_CODES
+    assert LETTER_CODES <= {code for code, _n, _m in PERMISSIONS}
 
 
 def _role_perms(db, company, role_code) -> set[str]:
@@ -144,38 +134,38 @@ def _role_perms(db, company, role_code) -> set[str]:
     )
 
 
-def test_default_roles_advance_grants_match_plan(db_session):
+def test_default_roles_letter_grants_match_plan(db_session):
     from app.core.rls import clear_context, elevate_for_seed
 
-    company = seed_company(db_session, "P8 Role Grants Co")
+    company = seed_company(db_session, "P9 Role Grants Co")
     elevate_for_seed(db_session)
     grants = {
-        code: _role_perms(db_session, company, code) & ADVANCE_CODES
-        for code in EXPECTED_ADVANCE_GRANTS
+        code: _role_perms(db_session, company, code) & LETTER_CODES
+        for code in EXPECTED_LETTER_GRANTS
     }
     clear_context(db_session)
 
-    for role_code, expected in EXPECTED_ADVANCE_GRANTS.items():
+    for role_code, expected in EXPECTED_LETTER_GRANTS.items():
         assert grants[role_code] == expected, role_code
 
 
-def test_phase8_constraints_exist(db_session):
+def test_phase9_constraints_exist(db_session):
     from app.core.rls import clear_context, elevate_for_seed
 
     elevate_for_seed(db_session)
 
     for conname, relname in (
-        ("ck_salary_advance_amount", "salary_advances"),
-        ("ck_salary_advance_installment", "salary_advances"),
-        ("ck_salary_advance_status", "salary_advances"),
-        ("ck_salary_advance_decision_consistency", "salary_advances"),
-        ("ck_salary_advance_decided_before_disburse", "salary_advances"),
-        ("ck_salary_advance_reject_reason", "salary_advances"),
-        ("ck_salary_advance_disbursed_rule", "salary_advances"),
-        ("ck_salary_advance_reason", "salary_advances"),
-        ("uq_salary_advance_deduction_rule", "salary_advances"),
-        ("ck_salary_advance_event_type", "salary_advance_events"),
-        ("ck_salary_advance_event_actor", "salary_advance_events"),
+        ("ck_hr_letter_type", "hr_letters"),
+        ("ck_hr_letter_language", "hr_letters"),
+        ("ck_hr_letter_status", "hr_letters"),
+        ("ck_hr_letter_issued_consistency", "hr_letters"),
+        ("ck_hr_letter_cancelled_consistency", "hr_letters"),
+        ("ck_hr_letter_void_consistency", "hr_letters"),
+        ("ck_hr_letter_void_reason", "hr_letters"),
+        ("ck_hr_letter_event_action", "hr_letter_events"),
+        ("ck_hr_letter_event_from_status", "hr_letter_events"),
+        ("ck_hr_letter_event_to_status", "hr_letter_events"),
+        ("ck_hr_letter_event_actor", "hr_letter_events"),
     ):
         count = db_session.execute(
             text(
@@ -187,32 +177,38 @@ def test_phase8_constraints_exist(db_session):
         ).scalar_one()
         assert count == 1, f"{conname} missing on {relname}"
 
-    unique_index = db_session.execute(
-        text(
-            "SELECT indexdef FROM pg_indexes "
-            "WHERE indexname = 'uq_salary_advance_deduction_rule'"
-        )
-    ).scalar_one()
-    assert "UNIQUE" in unique_index
-    assert "deduction_rule_id" in unique_index
-
     partial_index = db_session.execute(
         text(
             "SELECT indexdef FROM pg_indexes "
-            "WHERE indexname = 'ix_salary_advance_employee_open'"
+            "WHERE indexname = 'uq_hr_letter_active_request'"
         )
     ).scalar_one()
+    assert "UNIQUE" in partial_index
+    assert "source_request_id" in partial_index
     assert "WHERE" in partial_index
-    assert "draft" in partial_index
+    # Postgres normalizes the predicate to ARRAY['draft', 'issued'].
+    assert "'draft'" in partial_index and "'issued'" in partial_index
+
+    for indexname in (
+        "ix_hr_letter_company_status",
+        "ix_hr_letter_company_employee",
+        "ix_hr_letter_company_created",
+        "ix_hr_letter_event_letter",
+    ):
+        count = db_session.execute(
+            text("SELECT count(*) FROM pg_indexes WHERE indexname = :name"),
+            {"name": indexname},
+        ).scalar_one()
+        assert count == 1, indexname
 
     clear_context(db_session)
 
 
-def test_phase8_tables_have_forced_rls_policies(db_session):
+def test_phase9_tables_have_forced_rls_policies(db_session):
     from app.core.rls import clear_context, elevate_for_seed
 
     elevate_for_seed(db_session)
-    for table in PHASE8_RLS_TABLES:
+    for table in PHASE9_RLS_TABLES:
         row = db_session.execute(
             text(
                 "SELECT c.relrowsecurity, c.relforcerowsecurity, "
@@ -232,10 +228,10 @@ def test_phase8_tables_have_forced_rls_policies(db_session):
     clear_context(db_session)
 
 
-def test_0009_downgrade_and_upgrade_roundtrip(db_schema):
+def test_0010_downgrade_and_upgrade_roundtrip(db_schema):
     cfg = _alembic_config()
 
-    command.downgrade(cfg, "0008_phase7_ess")
+    command.downgrade(cfg, "0009_phase8_salary_advances")
 
     engine = create_engine(db_schema, future=True)
     try:
@@ -243,25 +239,40 @@ def test_0009_downgrade_and_upgrade_roundtrip(db_schema):
             version = conn.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            assert version == "0008_phase7_ess", version
+            assert version == "0009_phase8_salary_advances", version
             leftover = conn.execute(
+                text(
+                    "SELECT count(*) FROM information_schema.tables "
+                    "WHERE table_name IN "
+                    "('hr_letters','hr_letter_events')"
+                )
+            ).scalar_one()
+            assert leftover == 0, leftover
+            letter_perms = conn.execute(
+                text(
+                    "SELECT count(*) FROM permissions "
+                    "WHERE code IN ('hr_letter.view','hr_letter.create',"
+                    "'hr_letter.update','hr_letter.issue','hr_letter.void',"
+                    "'ess.letter.view')"
+                )
+            ).scalar_one()
+            assert letter_perms == 0, letter_perms
+            # The Phase 8 artifacts stay put during the roundtrip.
+            advance_perms = conn.execute(
+                text(
+                    "SELECT count(*) FROM permissions "
+                    "WHERE code LIKE 'salary_advance%'"
+                )
+            ).scalar_one()
+            assert advance_perms == 10, advance_perms
+            phase8_tables = conn.execute(
                 text(
                     "SELECT count(*) FROM information_schema.tables "
                     "WHERE table_name IN "
                     "('salary_advances','salary_advance_events')"
                 )
             ).scalar_one()
-            assert leftover == 0, leftover
-            # The Phase 7 ESS tables stay put during the roundtrip.
-            ess_restored = conn.execute(
-                text(
-                    "SELECT count(*) FROM information_schema.tables "
-                    "WHERE table_name IN "
-                    "('employee_requests','employee_request_events',"
-                    "'employee_document_visibility')"
-                )
-            ).scalar_one()
-            assert ess_restored == 3, ess_restored
+            assert phase8_tables == 2, phase8_tables
     finally:
         engine.dispose()
 
@@ -278,24 +289,55 @@ def test_0009_downgrade_and_upgrade_roundtrip(db_schema):
                 text(
                     "SELECT count(*) FROM information_schema.tables "
                     "WHERE table_name IN "
-                    "('salary_advances','salary_advance_events')"
+                    "('hr_letters','hr_letter_events')"
                 )
             ).scalar_one()
             assert restored == 2, restored
             perms = conn.execute(
                 text(
                     "SELECT count(*) FROM permissions "
-                    "WHERE code LIKE 'salary_advance%'"
+                    "WHERE code IN ('hr_letter.view','hr_letter.create',"
+                    "'hr_letter.update','hr_letter.issue','hr_letter.void',"
+                    "'ess.letter.view')"
                 )
             ).scalar_one()
-            assert perms == 10, perms
+            assert perms == 6, perms
             policies = conn.execute(
                 text(
                     "SELECT count(*) FROM pg_policy WHERE polname IN "
-                    "('salary_advances_tenant_isolation',"
-                    "'salary_advance_events_tenant_isolation')"
+                    "('hr_letters_tenant_isolation',"
+                    "'hr_letter_events_tenant_isolation')"
                 )
             ).scalar_one()
             assert policies == 2, policies
     finally:
         engine.dispose()
+
+
+def test_0010_roundtrip_restores_role_grants(db_session, db_schema):
+    from app.core.rls import clear_context, elevate_for_seed
+
+    company = seed_company(db_session, "P9 Roundtrip Co")
+    elevate_for_seed(db_session)
+    before = {
+        code: _role_perms(db_session, company, code) & LETTER_CODES
+        for code in EXPECTED_LETTER_GRANTS
+    }
+    clear_context(db_session)
+    for role_code, expected in EXPECTED_LETTER_GRANTS.items():
+        assert before[role_code] == expected, role_code
+    # Release the fixture transaction so alembic can take its DDL locks.
+    db_session.commit()
+
+    cfg = _alembic_config()
+    command.downgrade(cfg, "0009_phase8_salary_advances")
+    command.upgrade(cfg, "head")
+
+    elevate_for_seed(db_session)
+    after = {
+        code: _role_perms(db_session, company, code) & LETTER_CODES
+        for code in EXPECTED_LETTER_GRANTS
+    }
+    clear_context(db_session)
+    for role_code, expected in EXPECTED_LETTER_GRANTS.items():
+        assert after[role_code] == expected, role_code

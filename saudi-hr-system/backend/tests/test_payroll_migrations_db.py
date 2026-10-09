@@ -113,7 +113,7 @@ def test_frozen_migration_files_are_unchanged():
 
 def test_migration_chain_is_frozen_through_0007():
     script = ScriptDirectory.from_config(_alembic_config())
-    assert script.get_current_head() == "0009_phase8_salary_advances"
+    assert script.get_current_head() == "0010_phase9_hr_letters"
     revisions = {r.revision: r for r in script.walk_revisions()}
     assert revisions["0006_phase5_leave"].down_revision == ("0005_phase4_attendance")
     assert revisions["0007_phase6_payroll"].down_revision == "0006_phase5_leave"
@@ -133,7 +133,7 @@ def test_phase6_permissions_seeded_exactly(db_session):
 
     catalog_codes = {code for code, _name, _module in PERMISSIONS}
     assert db_codes == catalog_codes
-    assert len(db_codes) == 144  # 45 P1-P3 + 24 P4 + 25 P5 + 28 P6 + 12 P7 + 10 P8
+    assert len(db_codes) == 150  # 45 P1-P3 + 24 P4 + 25 P5 + 28 P6 + 12 P7 + 10 P8 + 6 P9
     assert PAYROLL_CODES <= db_codes
     payroll_owned = [
         c
@@ -299,7 +299,7 @@ def test_0007_downgrade_and_upgrade_roundtrip(db_schema):
             version = conn.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            assert version == "0009_phase8_salary_advances", version
+            assert version == "0010_phase9_hr_letters", version
             payroll_restored = conn.execute(
                 text(
                     "SELECT count(*) FROM information_schema.tables "

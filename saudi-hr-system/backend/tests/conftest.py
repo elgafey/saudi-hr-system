@@ -83,11 +83,11 @@ def db_schema():
     from alembic import command
 
     # 0001_phase1 (frozen) applies RLS policies for every registered table.
-    # Phase 2/3/4/5/6/7 rules may already be registered at import time
+    # Phase 2/3/4/5/6/7/8/9 rules may already be registered at import time
     # (app.main, test modules), but at 0001's point in history those tables
     # do not exist yet - mirror that history by hiding them during the
-    # upgrade (migrations 0003/0004/0005/0006/0007/0008 re-register and
-    # apply their own rules).
+    # upgrade (migrations 0003/0004/0005/0006/0007/0008/0010 re-register
+    # and apply their own rules).
     from app.core.rls import RLS_REGISTRY
     from app.core.rls_phase2 import PHASE2_RLS_TABLES
     from app.core.rls_phase3 import PHASE3_RLS_TABLES
@@ -96,6 +96,7 @@ def db_schema():
     from app.core.rls_phase6 import PHASE6_RLS_TABLES
     from app.core.rls_phase7 import PHASE7_RLS_TABLES
     from app.core.rls_phase8 import PHASE8_RLS_TABLES
+    from app.core.rls_phase9 import PHASE9_RLS_TABLES
 
     hidden = {
         t: RLS_REGISTRY.pop(t)
@@ -107,6 +108,7 @@ def db_schema():
             *PHASE6_RLS_TABLES,
             *PHASE7_RLS_TABLES,
             *PHASE8_RLS_TABLES,
+            *PHASE9_RLS_TABLES,
         )
         if t in RLS_REGISTRY
     }
@@ -142,7 +144,8 @@ def clean_tables(request):
         "salary_components, payroll_statutory_rules, "
         "employee_request_events, employee_requests, "
         "employee_document_visibility, "
-        "salary_advance_events, salary_advances"
+        "salary_advance_events, salary_advances, "
+        "hr_letter_events, hr_letters"
     )
     with engine.begin() as conn:
         conn.execute(

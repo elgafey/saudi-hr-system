@@ -124,7 +124,7 @@ def test_frozen_migration_files_are_unchanged():
 
 def test_migration_0006_is_head_and_child_of_0005():
     script = ScriptDirectory.from_config(_alembic_config())
-    assert script.get_current_head() == "0009_phase8_salary_advances"
+    assert script.get_current_head() == "0010_phase9_hr_letters"
     revisions = {r.revision: r for r in script.walk_revisions()}
     assert (
         revisions["0006_phase5_leave"].down_revision
@@ -147,7 +147,7 @@ def test_phase5_permissions_seeded_exactly(db_session):
 
     catalog_codes = {code for code, _name, _module in PERMISSIONS}
     assert db_codes == catalog_codes
-    assert len(db_codes) == 144  # 45 P1-P3 + 24 P4 + 25 P5 + 28 P6 + 12 P7 + 10 P8
+    assert len(db_codes) == 150  # 45 P1-P3 + 24 P4 + 25 P5 + 28 P6 + 12 P7 + 10 P8 + 6 P9
     assert LEAVE_CODES <= db_codes
     assert len([c for c in db_codes if c.startswith("leave_")]) == 25
 
@@ -192,7 +192,7 @@ def test_default_roles_leave_grants_match_plan(db_session):
 
     # The default self-service role gains exactly the Phase 7 ESS codes
     # on top of the four leave verbs, plus the Phase 8 advance paperwork
-    # verbs (nothing else).
+    # verbs and the Phase 9 own-letter ESS read (nothing else).
     elevate_for_seed(db_session)
     employee_all = _role_perms(db_session, company, "employee")
     clear_context(db_session)
@@ -209,6 +209,7 @@ def test_default_roles_leave_grants_match_plan(db_session):
         "salary_advance.update",
         "salary_advance.submit",
         "salary_advance.cancel",
+        "ess.letter.view",
     }
 
 
@@ -320,7 +321,7 @@ def test_0006_downgrade_and_upgrade_roundtrip(db_schema):
             version = conn.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            assert version == "0009_phase8_salary_advances", version
+            assert version == "0010_phase9_hr_letters", version
             restored = conn.execute(
                 text(
                     "SELECT count(*) FROM information_schema.tables "

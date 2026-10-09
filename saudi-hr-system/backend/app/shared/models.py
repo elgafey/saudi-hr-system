@@ -2268,3 +2268,170 @@ class SalaryAdvanceEvent(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 9 - HR letters
+# ---------------------------------------------------------------------------
+
+
+class HrLetter(Base, TimestampMixin):
+    """One HR employment-related letter with an explicit state machine.
+
+    draft -> issued -> void; draft -> cancelled (Phase 9 design, docs/PHASE9.md).
+    ``content`` is a closed, server-assembled JSONB snapshot built from
+    frozen source records (employee, contract, history, salary assignment -
+    read-only) at draft creation and re-assembled at issue; once issued the
+    content never changes (no application path mutates it outside draft).
+    ``source_request_id`` optionally links the Phase 7 approved ``hr_letter``
+    request the letter fulfils; at most one ACTIVE (draft|issued) letter may
+    reference a given request (partial unique index). Salary letters read the
+    active ``employee_salary_assignments`` row only - no payroll writes, no
+    statutory values, no formula engine.
+    """
+
+    __tablename__ = "hr_letters"
+    __table_args__ = (
+        CheckConstraint(
+            "letter_type IN "
+            "('employment','salary','experience','work_address')",
+            name="ck_hr_letter_type",
+        ),
+        CheckConstraint("language IN ('ar','en')", name="ck_hr_letter_language"),
+        CheckConstraint(
+            "status IN ('draft','issued','void','cancelled')",
+            name="ck_hr_letter_status",
+        ),
+        # Issue metadata exists exactly when the letter reached issued/void
+        # (void always follows issue, so the check covers both terminal
+        # post-issue states).
+        CheckConstraint(
+            "status IN ('issued','void') = (issued_at IS NOT NULL)",
+            name="ck_hr_letter_issued_consistency",
+        ),
+        CheckConstraint(
+            "(status <> 'cancelled') = (cancelled_at IS NULL)",
+            name="ck_hr_letter_cancelled_consistency",
+        ),
+        CheckConstraint(
+            "(status <> 'void') = (voided_at IS NULL AND void_reason IS NULL)",
+            name="ck_hr_letter_void_consistency",
+        ),
+        CheckConstraint(
+            "status <> 'void' OR length(trim(void_reason)) > 0",
+            name="ck_hr_letter_void_reason",
+        ),
+        Index("ix_hr_letter_company_status", "company_id", "status"),
+        Index("ix_hr_letter_company_employee", "company_id", "employee_id"),
+        Index("ix_hr_letter_company_created", "company_id", "created_at"),
+        Index(
+            "uq_hr_letter_active_request",
+            "source_request_id",
+            unique=True,
+            postgresql_where=text(
+                "source_request_id IS NOT NULL AND status IN ('draft','issued')"
+            ),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    company_id: Mapped[int] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    employee_id: Mapped[int] = mapped_column(
+        ForeignKey("employees.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    letter_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    language: Mapped[str] = mapped_column(String(2), nullable=False)
+    purpose: Mapped[str | None] = mapped_column(String(500))
+    status: Mapped[str] = mapped_column(
+        String(16), default="draft", server_default="draft", nullable=False
+    )
+    # Closed server-assembled snapshot (validated per letter_type in the
+    # service layer; frozen forever once the letter is issued).
+    content: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    source_request_id: Mapped[int | None] = mapped_column(
+        ForeignKey("employee_requests.id", ondelete="SET NULL"), index=True
+    )
+    issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    issued_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancelled_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    cancel_reason: Mapped[str | None] = mapped_column(String(500))
+    voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    voided_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    void_reason: Mapped[str | None] = mapped_column(String(500))
+    created_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    updated_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+
+    @property
+    def reference(self) -> str:
+        """Human-facing letter reference - derived from the id (no column)."""
+        return f"LTR-{self.id:06d}"
+
+
+class HrLetterEvent(Base):
+    """Append-only, employee-visible history of one HR letter.
+
+    Rows are only ever inserted (the service never updates/deletes them);
+    RLS scopes reads to the owning company, and the detail endpoints scope
+    reads to the owning letter. ``void_reason`` lives on the letter row and
+    is redacted from ESS responses; event ``note`` carries the cancel/void
+    text for HR and is likewise redacted from ESS.
+    """
+
+    __tablename__ = "hr_letter_events"
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('created','updated','issued','cancelled','voided')",
+            name="ck_hr_letter_event_action",
+        ),
+        CheckConstraint(
+            "from_status IS NULL OR from_status IN "
+            "('draft','issued','void','cancelled')",
+            name="ck_hr_letter_event_from_status",
+        ),
+        CheckConstraint(
+            "to_status IN ('draft','issued','void','cancelled')",
+            name="ck_hr_letter_event_to_status",
+        ),
+        CheckConstraint(
+            "length(trim(actor_name)) > 0", name="ck_hr_letter_event_actor"
+        ),
+        Index("ix_hr_letter_event_letter", "letter_id", "id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    company_id: Mapped[int] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    letter_id: Mapped[int] = mapped_column(
+        ForeignKey("hr_letters.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    from_status: Mapped[str | None] = mapped_column(String(16))
+    to_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    actor_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    # Denormalized display name so history survives user deletion.
+    actor_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(500))
+    # Same convention as audit_logs.ip_address (String(64)).
+    ip_address: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

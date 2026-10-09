@@ -98,7 +98,7 @@ def test_phase7_migration_artifact_is_unchanged():
 
 def test_migration_0008_is_head_and_child_of_0007():
     script = ScriptDirectory.from_config(_alembic_config())
-    assert script.get_current_head() == "0009_phase8_salary_advances"
+    assert script.get_current_head() == "0010_phase9_hr_letters"
     revisions = {r.revision: r for r in script.walk_revisions()}
     assert revisions["0007_phase6_payroll"].down_revision == "0006_phase5_leave"
     assert revisions["0008_phase7_ess"].down_revision == "0007_phase6_payroll"
@@ -117,9 +117,9 @@ def test_phase7_permissions_seeded_exactly(db_session):
 
     catalog_codes = {code for code, _name, _module in PERMISSIONS}
     assert db_codes == catalog_codes
-    assert len(db_codes) == 144  # 122 through Phase 6 + 12 P7 + 10 P8
+    assert len(db_codes) == 150  # 122 through Phase 6 + 12 P7 + 10 P8 + 6 P9
     assert PHASE7_CODES <= db_codes
-    assert len([c for c in db_codes if c.startswith("ess.")]) == 4
+    assert len([c for c in db_codes if c.startswith("ess.")]) == 5  # + ess.letter.view (Phase 9)
     assert len([c for c in db_codes if c.startswith("employee_request.")]) == 8
 
 
@@ -278,7 +278,7 @@ def test_0008_downgrade_and_upgrade_roundtrip(db_schema):
             version = conn.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            assert version == "0009_phase8_salary_advances", version
+            assert version == "0010_phase9_hr_letters", version
             restored = conn.execute(
                 text(
                     "SELECT count(*) FROM information_schema.tables "
@@ -291,6 +291,6 @@ def test_0008_downgrade_and_upgrade_roundtrip(db_schema):
             permissions_restored = conn.execute(
                 text("SELECT count(*) FROM permissions")
             ).scalar_one()
-            assert permissions_restored == 144, permissions_restored
+            assert permissions_restored == 150, permissions_restored
     finally:
         engine.dispose()

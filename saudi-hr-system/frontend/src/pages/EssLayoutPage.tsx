@@ -32,6 +32,11 @@ export default function EssLayoutPage() {
             {t("ess.tab.payslips")}
           </NavLink>
         ) : null}
+        {can("ess.letter.view") ? (
+          <NavLink to="/me/letters" className={tabClass}>
+            {t("ess.tab.letters")}
+          </NavLink>
+        ) : null}
       </nav>
       <Outlet />
     </div>

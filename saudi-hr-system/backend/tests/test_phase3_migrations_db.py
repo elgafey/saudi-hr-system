@@ -55,7 +55,7 @@ def test_frozen_migration_files_are_unchanged():
 
 def test_migration_chain_ends_at_0009():
     script = ScriptDirectory.from_config(_alembic_config())
-    assert script.get_current_head() == "0009_phase8_salary_advances"
+    assert script.get_current_head() == "0010_phase9_hr_letters"
     revisions = {r.revision: r for r in script.walk_revisions()}
     assert (
         revisions["0004_phase3_employee_lifecycle"].down_revision
@@ -92,7 +92,7 @@ def test_phase3_permissions_seeded_exactly(db_session):
 
     catalog_codes = {code for code, _name, _module in PERMISSIONS}
     assert db_codes == catalog_codes
-    assert len(db_codes) == 144  # 45 through Phase 3 + 24 P4 + 25 P5 + 28 P6 + 12 P7 + 10 P8
+    assert len(db_codes) == 150  # 45 through Phase 3 + 24 P4 + 25 P5 + 28 P6 + 12 P7 + 10 P8 + 6 P9
     assert PHASE3_CODES <= db_codes
 
 
